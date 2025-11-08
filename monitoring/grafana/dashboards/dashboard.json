@@ -1,0 +1,21 @@
+{
+  "dashboard": {
+    "id": null,
+    "title": "OpenChair Monitoring",
+    "tags": ["openchair"],
+    "timezone": "browser",
+    "panels": [
+      {
+        "id": 1,
+        "title": "Container Status",
+        "type": "stat",
+        "targets": [
+          {
+            "expr": "up",
+            "legendFormat": "{{job}}"
+          }
+        ]
+      }
+    ]
+  }
+} 
