@@ -33,6 +33,7 @@ services:
       - GF_SERVER_HTTP_PORT=${GRAFANA_PORT:-3200}
     volumes:
       - grafana_data:/var/lib/grafana
+      - ${MONITORING_CONFIG_DIR:-./monitoring}/grafana/datasources:/etc/grafana/provisioning/datasources
       - ${MONITORING_CONFIG_DIR:-./monitoring}/grafana/dashboards:/etc/grafana/provisioning/dashboards
     networks:
       - monitoring-network
