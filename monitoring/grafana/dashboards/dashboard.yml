@@ -8,6 +8,7 @@ providers:
     disableDeletion: false
     allowUiUpdates: true
     editable: true
+    foldersFromFilesStructure: true
     options:
-      path: /etc/grafana/provisioning/dashboards/dashboards
+      path: /etc/grafana/provisioning/dashboards
 

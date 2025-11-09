@@ -1,0 +1,14 @@
+modules:
+  default:
+    # The exporter will run `ipmitool` locally using the "open" interface.
+    command: ipmitool
+    args:
+      - "-I"
+      - "open"
+      - "sensor"
+    timeout: 15s
+    collect:
+      - "sdr"
+      - "sel"
+      - "chassis"
+

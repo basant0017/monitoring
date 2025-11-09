@@ -31,10 +31,13 @@ services:
       - GF_SECURITY_ADMIN_PASSWORD=${GF_ADMIN_PASSWORD:-admin}
       - GF_USERS_ALLOW_SIGN_UP=${GF_USERS_ALLOW_SIGN_UP:-false}
       - GF_SERVER_HTTP_PORT=${GRAFANA_PORT:-3200}
+      - GF_DASHBOARDS_DEFAULT_HOME_DASHBOARD_PATH=/etc/grafana/provisioning/dashboards/dashboards/home-overview.json
+      - GF_DASHBOARDS_DEFAULT_HOME_DASHBOARD_UID=home-monitoring
     volumes:
       - grafana_data:/var/lib/grafana
       - ${MONITORING_CONFIG_DIR:-./monitoring}/grafana/datasources:/etc/grafana/provisioning/datasources
       - ${MONITORING_CONFIG_DIR:-./monitoring}/grafana/dashboards:/etc/grafana/provisioning/dashboards
+      - ${MONITORING_CONFIG_DIR:-./monitoring}/grafana/preferences:/etc/grafana/provisioning/preferences
     networks:
       - monitoring-network
     restart: unless-stopped
@@ -59,10 +62,26 @@ services:
     volumes:
       - /var/log:/var/log
       - /var/lib/docker/containers:/var/lib/docker/containers:ro
+      - /home/gitlab-runner/.pm2/logs:/home/gitlab-runner/.pm2/logs:ro
       - ${MONITORING_CONFIG_DIR:-./monitoring}/promtail.yml:/etc/promtail/config.yml:ro
       - /var/run/docker.sock:/var/run/docker.sock 
     command:
       - "-config.file=/etc/promtail/config.yml"
+    networks:
+      - monitoring-network
+    restart: unless-stopped
+
+  cadvisor:
+    image: gcr.io/cadvisor/cadvisor:latest
+    container_name: ${STACK_NAME:-monitoring}_cadvisor
+    ports:
+      - "${CADVISOR_PORT:-8080}:8080"
+    volumes:
+      - /:/rootfs:ro
+      - /var/run:/var/run:ro
+      - /sys:/sys:ro
+      - /var/lib/docker/:/var/lib/docker:ro
+    privileged: true
     networks:
       - monitoring-network
     restart: unless-stopped
@@ -81,9 +100,38 @@ services:
       - '--path.rootfs=/rootfs'
       - '--path.sysfs=/host/sys'
       - '--collector.filesystem.mount-points-exclude=^/(sys|proc|dev|host|etc)($$|/)'
+      - '--collector.hwmon'
+      - '--collector.thermal_zone'
     networks:
       - monitoring-network
     restart: unless-stopped
+
+  nginx-exporter:
+    image: nginx/nginx-prometheus-exporter:latest
+    container_name: ${STACK_NAME:-monitoring}_nginx-exporter
+    profiles:
+      - optional
+    ports:
+      - "${NGINX_EXPORTER_PORT:-9113}:9113"
+    command:
+      - "-nginx.scrape-uri=${NGINX_EXPORTER_SCRAPE_URI:-http://host.docker.internal/nginx_status}"
+    networks:
+      - monitoring-network
+    restart: unless-stopped
+
+  apache-exporter:
+    image: bitnami/apache-exporter:latest
+    container_name: ${STACK_NAME:-monitoring}_apache-exporter
+    profiles:
+      - optional
+    ports:
+      - "${APACHE_EXPORTER_PORT:-9117}:9117"
+    command:
+      - "--scrape_uri=${APACHE_EXPORTER_SCRAPE_URI:-http://host.docker.internal/server-status?auto}"
+    networks:
+      - monitoring-network
+    restart: unless-stopped
+
 
 volumes:
   prometheus_data:

@@ -371,9 +371,1088 @@
     },
     {
       "type": "row",
+      "title": "System Deep Dive",
+      "id": 50,
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 28 },
+      "collapsed": false,
+      "panels": []
+    },
+    {
+      "id": 51,
+      "title": "Load Average (1m)",
+      "type": "stat",
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "gridPos": { "h": 4, "w": 6, "x": 0, "y": 29 },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "none",
+          "decimals": 2,
+          "color": { "mode": "thresholds" },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "orange", "value": 2 },
+              { "color": "red", "value": 4 }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "colorMode": "background",
+        "graphMode": "none",
+        "justifyMode": "center",
+        "reduceOptions": {
+          "calcs": ["lastNotNull"],
+          "fields": "",
+          "values": false
+        }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "avg(node_load1{job=~\"$job\", instance=~\"$instance\"})"
+        }
+      ]
+    },
+    {
+      "id": 52,
+      "title": "Swap Usage",
+      "type": "stat",
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "gridPos": { "h": 4, "w": 6, "x": 6, "y": 29 },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percent",
+          "decimals": 1,
+          "color": { "mode": "thresholds" },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "orange", "value": 20 },
+              { "color": "red", "value": 50 }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "colorMode": "background",
+        "graphMode": "none",
+        "justifyMode": "center",
+        "reduceOptions": {
+          "calcs": ["lastNotNull"],
+          "fields": "",
+          "values": false
+        }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "100 * (1 - (sum(node_memory_SwapFree_bytes{job=~\"$job\", instance=~\"$instance\"}) / sum(node_memory_SwapTotal_bytes{job=~\"$job\", instance=~\"$instance\"})))"
+        }
+      ]
+    },
+    {
+      "id": 53,
+      "title": "Host Uptime",
+      "type": "stat",
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "gridPos": { "h": 4, "w": 6, "x": 12, "y": 29 },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s",
+          "decimals": 0,
+          "color": { "mode": "thresholds" },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "red", "value": null },
+              { "color": "orange", "value": 3600 },
+              { "color": "green", "value": 86400 }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "colorMode": "background",
+        "graphMode": "none",
+        "justifyMode": "center",
+        "reduceOptions": {
+          "calcs": ["lastNotNull"],
+          "fields": "",
+          "values": false
+        }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "avg((node_time_seconds{job=~\"$job\", instance=~\"$instance\"} - node_boot_time_seconds{job=~\"$job\", instance=~\"$instance\"}))"
+        }
+      ]
+    },
+    {
+      "id": 54,
+      "title": "Processes (Running / Total / Blocked)",
+      "type": "table",
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "gridPos": { "h": 4, "w": 6, "x": 18, "y": 29 },
+      "fieldConfig": {
+        "defaults": {
+          "custom": { "align": "center" }
+        },
+        "overrides": []
+      },
+      "options": {
+        "showHeader": true,
+        "sortBy": [{ "displayName": "Running", "desc": true }]
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "node_procs_running{job=~\"$job\", instance=~\"$instance\"}",
+          "format": "table",
+          "instant": true
+        },
+        {
+          "refId": "B",
+          "expr": "node_procs_running{job=~\"$job\", instance=~\"$instance\"} + node_procs_blocked{job=~\"$job\", instance=~\"$instance\"}",
+          "format": "table",
+          "instant": true
+        },
+        {
+          "refId": "C",
+          "expr": "node_procs_blocked{job=~\"$job\", instance=~\"$instance\"}",
+          "format": "table",
+          "instant": true
+        }
+      ],
+      "transformations": [
+        { "id": "merge" },
+        {
+          "id": "organize",
+          "options": {
+            "renameByName": {
+              "instance": "Instance",
+              "Value": "Running",
+              "Value 2": "Total",
+              "Value 3": "Blocked"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "type": "row",
+      "title": "Storage & I/O",
+      "id": 55,
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 33 },
+      "collapsed": false,
+      "panels": []
+    },
+    {
+      "id": 56,
+      "title": "Disk Usage by Mount",
+      "type": "table",
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 34 },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percent",
+          "color": { "mode": "thresholds" },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "orange", "value": 75 },
+              { "color": "red", "value": 90 }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "showHeader": true,
+        "sortBy": [{ "displayName": "Used %", "desc": true }]
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "(1 - (node_filesystem_avail_bytes{job=~\"$job\", instance=~\"$instance\", fstype!~\"rootfs|tmpfs|overlay\"} / node_filesystem_size_bytes{job=~\"$job\", instance=~\"$instance\", fstype!~\"rootfs|tmpfs|overlay\"})) * 100",
+          "format": "table",
+          "instant": true
+        },
+        {
+          "refId": "B",
+          "expr": "node_filesystem_size_bytes{job=~\"$job\", instance=~\"$instance\", fstype!~\"rootfs|tmpfs|overlay\"}",
+          "format": "table",
+          "instant": true
+        }
+      ],
+      "transformations": [
+        { "id": "merge" },
+        {
+          "id": "organize",
+          "options": {
+            "renameByName": {
+              "instance": "Instance",
+              "mountpoint": "Mount",
+              "Value": "Used %",
+              "Value 2": "Size (bytes)"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": 57,
+      "title": "Inode Usage by Mount",
+      "type": "table",
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 34 },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percent",
+          "color": { "mode": "thresholds" },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "orange", "value": 75 },
+              { "color": "red", "value": 90 }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "showHeader": true,
+        "sortBy": [{ "displayName": "Inodes Used %", "desc": true }]
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "(1 - (node_filesystem_files_free{job=~\"$job\", instance=~\"$instance\", fstype!~\"rootfs|tmpfs|overlay\"} / node_filesystem_files{job=~\"$job\", instance=~\"$instance\", fstype!~\"rootfs|tmpfs|overlay\"})) * 100",
+          "format": "table",
+          "instant": true
+        }
+      ],
+      "transformations": [
+        {
+          "id": "organize",
+          "options": {
+            "renameByName": {
+              "instance": "Instance",
+              "mountpoint": "Mount",
+              "Value": "Inodes Used %"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": 58,
+      "title": "Disk IOPS",
+      "type": "timeseries",
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "gridPos": { "h": 7, "w": 12, "x": 0, "y": 42 },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "iops",
+          "color": { "mode": "palette-classic" }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": { "displayMode": "table", "placement": "bottom" },
+        "tooltip": { "mode": "multi" }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum by (device) (rate(node_disk_reads_completed_total{job=~\"$job\", instance=~\"$instance\", device!~\"loop.*\"}[$__rate_interval]) + rate(node_disk_writes_completed_total{job=~\"$job\", instance=~\"$instance\", device!~\"loop.*\"}[$__rate_interval]))",
+          "legendFormat": "{{device}}"
+        }
+      ]
+    },
+    {
+      "id": 59,
+      "title": "Disk Throughput",
+      "type": "timeseries",
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "gridPos": { "h": 7, "w": 12, "x": 12, "y": 42 },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "Bps",
+          "color": { "mode": "palette-classic" }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": { "displayMode": "table", "placement": "bottom" },
+        "tooltip": { "mode": "multi" }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum by (device) (rate(node_disk_read_bytes_total{job=~\"$job\", instance=~\"$instance\", device!~\"loop.*\"}[$__rate_interval]) + rate(node_disk_written_bytes_total{job=~\"$job\", instance=~\"$instance\", device!~\"loop.*\"}[$__rate_interval]))",
+          "legendFormat": "{{device}}"
+        }
+      ]
+    },
+    {
+      "id": 60,
+      "title": "Disk Latency",
+      "type": "timeseries",
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "gridPos": { "h": 7, "w": 24, "x": 0, "y": 49 },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s",
+          "decimals": 4,
+          "color": { "mode": "palette-classic" }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": { "displayMode": "table", "placement": "bottom" },
+        "tooltip": { "mode": "multi" }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum by (device) (rate(node_disk_io_time_seconds_total{job=~\"$job\", instance=~\"$instance\", device!~\"loop.*\"}[$__rate_interval]) / clamp_min(rate(node_disk_reads_completed_total{job=~\"$job\", instance=~\"$instance\", device!~\"loop.*\"}[$__rate_interval]) + rate(node_disk_writes_completed_total{job=~\"$job\", instance=~\"$instance\", device!~\"loop.*\"}[$__rate_interval]), 1e-6))",
+          "legendFormat": "{{device}}"
+        }
+      ]
+    },
+    {
+      "type": "row",
+      "title": "Network & Availability",
+      "id": 61,
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 56 },
+      "collapsed": false,
+      "panels": []
+    },
+    {
+      "id": 62,
+      "title": "Network In (All Instances)",
+      "type": "stat",
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "gridPos": { "h": 4, "w": 6, "x": 0, "y": 57 },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "Bps",
+          "decimals": 2,
+          "color": { "mode": "palette-classic" }
+        },
+        "overrides": []
+      },
+      "options": {
+        "colorMode": "value",
+        "graphMode": "none",
+        "justifyMode": "center",
+        "reduceOptions": {
+          "calcs": ["lastNotNull"],
+          "fields": "",
+          "values": false
+        }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum(rate(node_network_receive_bytes_total{job=~\"$job\", instance=~\"$instance\", device!~\"lo|docker.*\"}[$__rate_interval]))"
+        }
+      ]
+    },
+    {
+      "id": 63,
+      "title": "Network Out (All Instances)",
+      "type": "stat",
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "gridPos": { "h": 4, "w": 6, "x": 6, "y": 57 },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "Bps",
+          "decimals": 2,
+          "color": { "mode": "palette-classic" }
+        },
+        "overrides": []
+      },
+      "options": {
+        "colorMode": "value",
+        "graphMode": "none",
+        "justifyMode": "center",
+        "reduceOptions": {
+          "calcs": ["lastNotNull"],
+          "fields": "",
+          "values": false
+        }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum(rate(node_network_transmit_bytes_total{job=~\"$job\", instance=~\"$instance\", device!~\"lo|docker.*\"}[$__rate_interval]))"
+        }
+      ]
+    },
+    {
+      "id": 64,
+      "title": "Service Availability",
+      "type": "table",
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "gridPos": { "h": 4, "w": 12, "x": 12, "y": 57 },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "thresholds" },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "red", "value": null },
+              { "color": "green", "value": 1 }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "showHeader": true,
+        "sortBy": [{ "displayName": "Up", "desc": true }]
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "up",
+          "format": "table",
+          "instant": true
+        }
+      ],
+      "transformations": [
+        {
+          "id": "organize",
+          "options": {
+            "renameByName": {
+              "job": "Job",
+              "instance": "Instance",
+              "Value": "Up"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "type": "row",
+      "title": "Web Servers",
+      "id": 65,
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 61 },
+      "collapsed": false,
+      "panels": []
+    },
+    {
+      "id": 66,
+      "title": "NGINX Requests / s",
+      "type": "stat",
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "gridPos": { "h": 4, "w": 6, "x": 0, "y": 62 },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "reqps",
+          "decimals": 2,
+          "color": { "mode": "palette-classic" }
+        },
+        "overrides": []
+      },
+      "options": {
+        "colorMode": "value",
+        "graphMode": "none",
+        "justifyMode": "center",
+        "reduceOptions": {
+          "calcs": ["lastNotNull"],
+          "fields": "",
+          "values": false
+        }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum(rate(nginx_http_requests_total{job=\"nginx-exporter\"}[$__rate_interval]))"
+        }
+      ]
+    },
+    {
+      "id": 67,
+      "title": "NGINX Active Connections",
+      "type": "stat",
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "gridPos": { "h": 4, "w": 6, "x": 6, "y": 62 },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "decimals": 0,
+          "color": { "mode": "palette-classic" }
+        },
+        "overrides": []
+      },
+      "options": {
+        "colorMode": "value",
+        "graphMode": "none",
+        "justifyMode": "center",
+        "reduceOptions": {
+          "calcs": ["lastNotNull"],
+          "fields": "",
+          "values": false
+        }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "avg(nginx_connections_active{job=\"nginx-exporter\"})"
+        }
+      ]
+    },
+    {
+      "id": 68,
+      "title": "Apache Requests / s",
+      "type": "stat",
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "gridPos": { "h": 4, "w": 6, "x": 12, "y": 62 },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "reqps",
+          "decimals": 2,
+          "color": { "mode": "palette-classic" }
+        },
+        "overrides": []
+      },
+      "options": {
+        "colorMode": "value",
+        "graphMode": "none",
+        "justifyMode": "center",
+        "reduceOptions": {
+          "calcs": ["lastNotNull"],
+          "fields": "",
+          "values": false
+        }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum(rate(apache_accesses_total{job=\"apache-exporter\"}[$__rate_interval]))"
+        }
+      ]
+    },
+    {
+      "id": 69,
+      "title": "Apache Busy Workers",
+      "type": "stat",
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "gridPos": { "h": 4, "w": 6, "x": 18, "y": 62 },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "decimals": 0,
+          "color": { "mode": "palette-classic" }
+        },
+        "overrides": []
+      },
+      "options": {
+        "colorMode": "value",
+        "graphMode": "none",
+        "justifyMode": "center",
+        "reduceOptions": {
+          "calcs": ["lastNotNull"],
+          "fields": "",
+          "values": false
+        }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "avg(apache_workers{job=\"apache-exporter\", state=\"busy\"})"
+        }
+      ]
+    },
+    {
+      "type": "row",
+      "title": "Node.js & PM2 Applications",
+      "id": 70,
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 66 },
+      "collapsed": false,
+      "panels": []
+    },
+    {
+      "id": 71,
+      "title": "PM2 Process Resource Usage",
+      "type": "table",
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "gridPos": { "h": 7, "w": 12, "x": 0, "y": 67 },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "palette-classic" }
+        },
+        "overrides": []
+      },
+      "options": {
+        "showHeader": true,
+        "sortBy": [{ "displayName": "CPU %", "desc": true }]
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "pm2_process_cpu_percent",
+          "format": "table",
+          "instant": true
+        },
+        {
+          "refId": "B",
+          "expr": "pm2_process_memory_bytes",
+          "format": "table",
+          "instant": true
+        },
+        {
+          "refId": "C",
+          "expr": "pm2_process_uptime_seconds",
+          "format": "table",
+          "instant": true
+        }
+      ],
+      "transformations": [
+        { "id": "merge" },
+        {
+          "id": "organize",
+          "options": {
+            "renameByName": {
+              "name": "Process",
+              "pm_id": "PM2 ID",
+              "Value": "CPU %",
+              "Value 2": "Memory (bytes)",
+              "Value 3": "Uptime (s)"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": 72,
+      "title": "Event Loop Lag",
+      "type": "stat",
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "gridPos": { "h": 7, "w": 6, "x": 12, "y": 67 },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s",
+          "decimals": 3,
+          "color": { "mode": "thresholds" },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "orange", "value": 0.1 },
+              { "color": "red", "value": 0.5 }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "colorMode": "background",
+        "graphMode": "none",
+        "justifyMode": "center",
+        "reduceOptions": {
+          "calcs": ["lastNotNull"],
+          "fields": "",
+          "values": false
+        }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "max(pm2_process_event_loop_delay_seconds)"
+        }
+      ]
+    },
+    {
+      "id": 73,
+      "title": "PM2 Restart Count (5m)",
+      "type": "stat",
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "gridPos": { "h": 7, "w": 6, "x": 18, "y": 67 },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "decimals": 0,
+          "color": { "mode": "thresholds" },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "orange", "value": 1 },
+              { "color": "red", "value": 3 }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "colorMode": "background",
+        "graphMode": "none",
+        "justifyMode": "center",
+        "reduceOptions": {
+          "calcs": ["lastNotNull"],
+          "fields": "",
+          "values": false
+        }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum(increase(pm2_process_restarts_total[5m]))"
+        }
+      ]
+    },
+    {
+      "type": "row",
+      "title": "Containers",
+      "id": 74,
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 74 },
+      "collapsed": false,
+      "panels": []
+    },
+    {
+      "id": 75,
+      "title": "Container CPU Usage %",
+      "type": "bargauge",
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "gridPos": { "h": 7, "w": 12, "x": 0, "y": 75 },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percent"
+        },
+        "overrides": []
+      },
+      "options": {
+        "displayMode": "gradient",
+        "orientation": "horizontal",
+        "showUnfilled": false,
+        "reduceOptions": {
+          "calcs": ["lastNotNull"],
+          "fields": "",
+          "values": false
+        }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "100 * sum by (container_label_com_docker_compose_service) (rate(container_cpu_usage_seconds_total{job=\"cadvisor\", container_label_com_docker_compose_service=~\"$service\"}[$__rate_interval]))",
+          "legendFormat": "{{container_label_com_docker_compose_service}}"
+        }
+      ]
+    },
+    {
+      "id": 76,
+      "title": "Container Memory Usage",
+      "type": "bargauge",
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "gridPos": { "h": 7, "w": 12, "x": 12, "y": 75 },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "bytes"
+        },
+        "overrides": []
+      },
+      "options": {
+        "displayMode": "gradient",
+        "orientation": "horizontal",
+        "showUnfilled": false,
+        "reduceOptions": {
+          "calcs": ["lastNotNull"],
+          "fields": "",
+          "values": false
+        }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum by (container_label_com_docker_compose_service) (container_memory_usage_bytes{job=\"cadvisor\", container_label_com_docker_compose_service=~\"$service\"})",
+          "legendFormat": "{{container_label_com_docker_compose_service}}"
+        }
+      ]
+    },
+    {
+      "id": 77,
+      "title": "Container Restart Count (24h)",
+      "type": "table",
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 82 },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "color": { "mode": "thresholds" },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "orange", "value": 1 },
+              { "color": "red", "value": 3 }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "showHeader": true,
+        "sortBy": [{ "displayName": "Restarts (24h)", "desc": true }]
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum by (container_label_com_docker_compose_service) (changes(container_start_time_seconds{job=\"cadvisor\", container_label_com_docker_compose_service=~\"$service\"}[24h]))",
+          "format": "table",
+          "instant": true
+        }
+      ],
+      "transformations": [
+        {
+          "id": "organize",
+          "options": {
+            "renameByName": {
+              "container_label_com_docker_compose_service": "Service",
+              "Value": "Restarts (24h)"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": 78,
+      "title": "Flapping Containers (Restarts 15m)",
+      "type": "table",
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 82 },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "color": { "mode": "thresholds" },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "orange", "value": 1 },
+              { "color": "red", "value": 2 }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "showHeader": true,
+        "sortBy": [{ "displayName": "Restarts (15m)", "desc": true }]
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum by (container_label_com_docker_compose_service) (changes(container_start_time_seconds{job=\"cadvisor\", container_label_com_docker_compose_service=~\"$service\"}[15m]))",
+          "format": "table",
+          "instant": true
+        }
+      ],
+      "transformations": [
+        {
+          "id": "organize",
+          "options": {
+            "renameByName": {
+              "container_label_com_docker_compose_service": "Service",
+              "Value": "Restarts (15m)"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": 79,
+      "title": "Container Uptime",
+      "type": "table",
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "gridPos": { "h": 7, "w": 24, "x": 0, "y": 90 },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s",
+          "color": { "mode": "thresholds" },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "red", "value": null },
+              { "color": "orange", "value": 600 },
+              { "color": "green", "value": 3600 }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "showHeader": true,
+        "sortBy": [{ "displayName": "Uptime (s)", "desc": false }]
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "time() - max by (container_label_com_docker_compose_service) (container_start_time_seconds{job=\"cadvisor\", container_label_com_docker_compose_service=~\"$service\"})",
+          "format": "table",
+          "instant": true
+        }
+      ],
+      "transformations": [
+        {
+          "id": "organize",
+          "options": {
+            "renameByName": {
+              "container_label_com_docker_compose_service": "Service",
+              "Value": "Uptime (s)"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "type": "row",
+      "title": "Hardware Sensors",
+      "id": 80,
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 97 },
+      "collapsed": false,
+      "panels": []
+    },
+    {
+      "id": 81,
+      "title": "CPU Temperature",
+      "type": "timeseries",
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "gridPos": { "h": 7, "w": 12, "x": 0, "y": 98 },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "celsius",
+          "color": { "mode": "palette-classic" }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": { "displayMode": "table", "placement": "bottom" },
+        "tooltip": { "mode": "multi" }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "avg by (chip, sensor) (node_hwmon_temp_celsius{job=~\"$job\", instance=~\"$instance\"})",
+          "legendFormat": "{{chip}} {{sensor}}"
+        }
+      ]
+    },
+    {
+      "id": 82,
+      "title": "Fan Speed",
+      "type": "timeseries",
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "gridPos": { "h": 7, "w": 12, "x": 12, "y": 98 },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "rpm",
+          "color": { "mode": "palette-classic" }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": { "displayMode": "table", "placement": "bottom" },
+        "tooltip": { "mode": "multi" }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "avg by (chip, sensor) (node_hwmon_fan_rpm{job=~\"$job\", instance=~\"$instance\"})",
+          "legendFormat": "{{chip}} {{sensor}}"
+        }
+      ]
+    },
+    {
+      "id": 83,
+      "title": "Power / IPMI Sensors (optional)",
+      "type": "table",
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "gridPos": { "h": 7, "w": 12, "x": 0, "y": 105 },
+      "fieldConfig": {
+        "defaults": {
+          "custom": { "align": "center" }
+        },
+        "overrides": []
+      },
+      "options": {
+        "showHeader": true
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "ipmi_sensor_value",
+          "format": "table",
+          "instant": true
+        }
+      ],
+      "transformations": [
+        {
+          "id": "organize",
+          "options": {
+            "renameByName": {
+              "name": "Sensor",
+              "entity_id": "Entity",
+              "unit": "Unit",
+              "Value": "Value"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": 84,
+      "title": "IPMI Status (optional)",
+      "type": "stat",
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "gridPos": { "h": 7, "w": 12, "x": 12, "y": 105 },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "color": { "mode": "thresholds" },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "red", "value": null },
+              { "color": "green", "value": 1 }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "colorMode": "background",
+        "graphMode": "none",
+        "justifyMode": "center",
+        "reduceOptions": {
+          "calcs": ["lastNotNull"],
+          "fields": "",
+          "values": false
+        }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "max(up{job=\"ipmi-exporter\"})"
+        }
+      ]
+    },
+    {
+      "type": "row",
       "title": "Logs",
       "id": 40,
-      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 28 },
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 112 },
       "collapsed": false,
       "panels": []
     },
@@ -382,7 +1461,7 @@
       "title": "Live Container Logs",
       "type": "logs",
       "datasource": { "type": "loki", "uid": "loki" },
-      "gridPos": { "h": 10, "w": 24, "x": 0, "y": 29 },
+      "gridPos": { "h": 10, "w": 24, "x": 0, "y": 113 },
       "options": {
         "dedupStrategy": "none",
         "showTime": true,
@@ -393,10 +1472,25 @@
       "targets": [
         {
           "refId": "A",
-          "expr": "{job=~\"$job\", container=~\"$container\"}",
+          "expr": "{job=~\"$log_job\", container=~\"$container\"}",
           "queryType": "range"
         }
       ]
+    },
+    {
+      "id": 42,
+      "title": "Dashboards",
+      "type": "dashlist",
+      "gridPos": { "h": 8, "w": 24, "x": 0, "y": 123 },
+      "options": {
+        "dashboardListType": "dash-db",
+        "folderId": 0,
+        "limit": 30,
+        "showHeadings": true,
+        "query": "",
+        "search": "",
+        "tags": []
+      }
     }
   ],
   "templating": {
@@ -407,6 +1501,17 @@
         "type": "query",
         "datasource": { "type": "prometheus", "uid": "prometheus" },
         "query": "label_values(node_exporter_build_info, job)",
+        "includeAll": true,
+        "multi": true,
+        "refresh": 1,
+        "current": { "selected": false, "text": "All", "value": "$__all" }
+      },
+      {
+        "name": "log_job",
+        "label": "Log Job",
+        "type": "query",
+        "datasource": { "type": "loki", "uid": "loki" },
+        "query": "label_values({job!=\"\"}, job)",
         "includeAll": true,
         "multi": true,
         "refresh": 1,
@@ -428,7 +1533,18 @@
         "label": "Container",
         "type": "query",
         "datasource": { "type": "loki", "uid": "loki" },
-        "query": "label_values({job=~\"$job\"}, container)",
+        "query": "label_values({job=~\"$log_job\"}, container)",
+        "includeAll": true,
+        "multi": true,
+        "refresh": 1,
+        "current": { "selected": false, "text": "All", "value": "$__all" }
+      },
+      {
+        "name": "service",
+        "label": "Compose Service",
+        "type": "query",
+        "datasource": { "type": "prometheus", "uid": "prometheus" },
+        "query": "label_values(container_last_seen{job=\"cadvisor\", container_label_com_docker_compose_service!=\"\"}, container_label_com_docker_compose_service)",
         "includeAll": true,
         "multi": true,
         "refresh": 1,
