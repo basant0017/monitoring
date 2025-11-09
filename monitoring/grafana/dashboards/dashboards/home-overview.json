@@ -1373,7 +1373,7 @@
       "targets": [
         {
           "refId": "A",
-          "expr": "{job=~\"$log_job\", container=~\"$container\", container=~\"nest|mongod|redis|web-admin\"}",
+          "expr": "{job=~\"$log_job\", container=~\"$container\", container=~\"nest|mongod|redis|web-admin|openchair-web\"}",
           "queryType": "range"
         }
       ]
@@ -1434,10 +1434,10 @@
         "label": "Container",
         "type": "query",
         "datasource": { "type": "loki", "uid": "loki" },
-        "query": "label_values({job=~\"$log_job\", container=~\"nest|mongod|redis|web-admin\"}, container)",
+        "query": "label_values({job=~\"$log_job\", container=~\"nest|mongod|redis|web-admin|openchair-web\"}, container)",
         "includeAll": true,
         "multi": true,
-        "allValue": "nest|mongod|redis|web-admin",
+        "allValue": "nest|mongod|redis|web-admin|openchair-web",
         "refresh": 1,
         "current": { "selected": false, "text": "All", "value": "$__all" }
       },
