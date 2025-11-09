@@ -1,0 +1,6 @@
+- labels:
+    environment: production
+  targets:
+    - cadvisor:8080
+    # - server-a.example.com:8080
+

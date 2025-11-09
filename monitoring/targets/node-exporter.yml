@@ -1,0 +1,9 @@
+- labels:
+    environment: production
+  targets:
+    # Central stack (do not remove)
+    - node-exporter:9100
+    # Add additional node_exporter endpoints below (host:port)
+    # - server-a.example.com:9100
+    # - 10.0.0.12:9100
+

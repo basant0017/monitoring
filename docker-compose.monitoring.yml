@@ -8,6 +8,7 @@ services:
       - "${PROMETHEUS_PORT:-9090}:9090"
     volumes:
       - ${MONITORING_CONFIG_DIR:-./monitoring}/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - ${MONITORING_CONFIG_DIR:-./monitoring}/targets:/etc/prometheus/targets:ro
       - prometheus_data:/prometheus
     command:
       - "--config.file=/etc/prometheus/prometheus.yml"

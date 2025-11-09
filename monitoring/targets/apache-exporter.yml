@@ -1,0 +1,6 @@
+- labels:
+    environment: production
+  targets:
+    - apache-exporter:9117
+    # - server-a.example.com:9117
+
