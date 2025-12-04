@@ -9,16 +9,17 @@ on:
 
 jobs:
   build:
-    # Use your VM self-hosted runner
     runs-on: self-hosted
 
     steps:
       - uses: actions/checkout@v4
 
-      - name: Run a one-line script
+      - name: Say Hello
         run: echo "Hello from Self-Hosted Runner!"
 
-      - name: Run a multi-line script
+      - name: Copy project to /var/www/html
         run: |
-          echo "Add other actions to build,"
-          echo "test, and deploy your project using your VM runner."
+          echo "Copying files to /var/www/html..."
+          sudo rm -rf /var/www/html/*
+          sudo cp -r ./* /var/www/html/
+          echo "Deploy complete!"
