@@ -77,11 +77,23 @@ services:
       - GF_ANALYTICS_CHECK_FOR_UPDATES=false
       - GF_LOG_LEVEL=${GF_LOG_LEVEL:-warn}
       - GF_INSTALL_PLUGINS=${GF_INSTALL_PLUGINS:-}
+      # SMTP Configuration
+      - GF_SMTP_ENABLED=${GF_SMTP_ENABLED:-true}
+      - GF_SMTP_HOST=${GF_SMTP_HOST:-smtp.gmail.com}
+      - GF_SMTP_PORT=${GF_SMTP_PORT:-587}
+      - GF_SMTP_USER=${GF_SMTP_USER:-}
+      - GF_SMTP_PASSWORD=${GF_SMTP_PASSWORD:-}
+      - GF_SMTP_FROM_ADDRESS=${GF_SMTP_FROM_ADDRESS:-}
+      - GF_SMTP_FROM_NAME=${GF_SMTP_FROM_NAME:-Grafana Monitoring}
+      - GF_SMTP_SKIP_VERIFY=${GF_SMTP_SKIP_VERIFY:-false}
+      - GF_SMTP_STARTTLS_POLICY=${GF_SMTP_STARTTLS_POLICY:-OpportunisticStartTLS}
+      - GF_ALERTING_EMAIL_ADDRESSES=${GF_ALERTING_EMAIL_ADDRESSES:-}
     volumes:
       - grafana_data:/var/lib/grafana
       - ${MONITORING_CONFIG_DIR:-./monitoring}/grafana/datasources:/etc/grafana/provisioning/datasources:ro
       - ${MONITORING_CONFIG_DIR:-./monitoring}/grafana/dashboards:/etc/grafana/provisioning/dashboards:ro
       - ${MONITORING_CONFIG_DIR:-./monitoring}/grafana/preferences:/etc/grafana/provisioning/preferences:ro
+      - ${MONITORING_CONFIG_DIR:-./monitoring}/grafana/notifiers:/etc/grafana/provisioning/notifiers:ro
     networks:
       - monitoring-network
     restart: unless-stopped
@@ -259,39 +271,6 @@ services:
     security_opt:
       - no-new-privileges:true
 
-  nginx-exporter:
-    image: nginx/nginx-prometheus-exporter:latest
-    container_name: ${STACK_NAME:-monitoring}_nginx-exporter
-    hostname: nginx-exporter
-    profiles:
-      - optional
-    ports:
-      - "${NGINX_EXPORTER_PORT:-9113}:9113"
-    command:
-      - "-nginx.scrape-uri=${NGINX_EXPORTER_SCRAPE_URI:-http://nginx:80/nginx_status}"
-    networks:
-      - monitoring-network
-    restart: unless-stopped
-    healthcheck:
-      test: ["CMD-SHELL", "wget --quiet --tries=1 --spider http://localhost:9113/metrics || exit 1"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 5s
-    deploy:
-      resources:
-        limits:
-          cpus: '0.25'
-          memory: 128M
-        reservations:
-          cpus: '0.05'
-          memory: 32M
-    logging: *default-logging
-    labels: *common-labels
-    read_only: true
-    security_opt:
-      - no-new-privileges:true
-
   apache-exporter:
     image: bitnami/apache-exporter:latest
     container_name: ${STACK_NAME:-monitoring}_apache-exporter
@@ -325,55 +304,6 @@ services:
     security_opt:
       - no-new-privileges:true
 
-  nginx:
-    image: nginx:alpine
-    container_name: ${STACK_NAME:-monitoring}_nginx
-    hostname: nginx
-    ports:
-      - "${NGINX_PORT:-80}:80"
-      - "${NGINX_HTTPS_PORT:-443}:443"
-    volumes:
-      - ${MONITORING_CONFIG_DIR:-./monitoring}/nginx/nginx.conf:/etc/nginx/nginx.conf:ro
-      - ${MONITORING_CONFIG_DIR:-./monitoring}/nginx/conf.d/monitoring.conf.template:/etc/nginx/conf.d/monitoring.conf.template:ro
-      - ${MONITORING_CONFIG_DIR:-./monitoring}/nginx/ssl:/etc/nginx/ssl:ro
-      - nginx_logs:/var/log/nginx
-    networks:
-      - monitoring-network
-    restart: unless-stopped
-    depends_on:
-      grafana:
-        condition: service_healthy
-      prometheus:
-        condition: service_healthy
-      loki:
-        condition: service_healthy
-    healthcheck:
-      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost/nginx-health"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 10s
-    deploy:
-      resources:
-        limits:
-          cpus: '0.5'
-          memory: 256M
-        reservations:
-          cpus: '0.1'
-          memory: 64M
-    logging: *default-logging
-    labels: *common-labels
-    read_only: true
-    security_opt:
-      - no-new-privileges:true
-    environment:
-      - NGINX_DOMAIN=${NGINX_DOMAIN:-localhost}
-    command: >
-      sh -c "envsubst '$$NGINX_DOMAIN' < /etc/nginx/conf.d/monitoring.conf.template > /etc/nginx/conf.d/monitoring.conf &&
-             nginx -t &&
-             nginx -g 'daemon off;'"
-
-
 volumes:
   prometheus_data:
     driver: local
@@ -384,9 +314,6 @@ volumes:
   loki_data:
     driver: local
     name: ${STACK_NAME:-monitoring}_loki_data
-  nginx_logs:
-    driver: local
-    name: ${STACK_NAME:-monitoring}_nginx_logs
   promtail_positions:
     driver: local
     name: ${STACK_NAME:-monitoring}_promtail_positions
