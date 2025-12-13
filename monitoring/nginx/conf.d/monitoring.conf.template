@@ -1,0 +1,165 @@
+# Monitoring Stack Reverse Proxy Configuration
+# This file uses environment variable substitution
+
+# Nginx stub_status for metrics (required by nginx-exporter)
+server {
+    listen 80;
+    server_name nginx.${NGINX_DOMAIN} _;
+
+    # Stub status endpoint for Prometheus nginx-exporter
+    location /nginx_status {
+        stub_status on;
+        access_log off;
+        allow 127.0.0.1;
+        allow 172.20.0.0/16;  # Docker network
+        deny all;
+    }
+
+    # Health check endpoint
+    location /nginx-health {
+        access_log off;
+        return 200 "healthy\n";
+        add_header Content-Type text/plain;
+    }
+}
+
+# Grafana
+server {
+    listen 80;
+    server_name ${NGINX_DOMAIN} grafana.${NGINX_DOMAIN};
+
+    # Security headers
+    add_header X-Frame-Options "SAMEORIGIN" always;
+    add_header X-Content-Type-Options "nosniff" always;
+
+    location / {
+        limit_req zone=grafana_limit burst=10 nodelay;
+        
+        proxy_pass http://grafana;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_set_header X-Forwarded-Host $host;
+        proxy_set_header X-Forwarded-Port $server_port;
+
+        # WebSocket support for Grafana
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection "upgrade";
+
+        # Timeouts
+        proxy_connect_timeout 60s;
+        proxy_send_timeout 60s;
+        proxy_read_timeout 60s;
+
+        # Buffering
+        proxy_buffering off;
+        proxy_request_buffering off;
+    }
+
+    # Health check endpoint
+    location /nginx-health {
+        access_log off;
+        return 200 "healthy\n";
+        add_header Content-Type text/plain;
+    }
+}
+
+# Prometheus
+server {
+    listen 80;
+    server_name prometheus.${NGINX_DOMAIN};
+
+    location / {
+        limit_req zone=api_limit burst=20 nodelay;
+        
+        proxy_pass http://prometheus;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+
+        # Timeouts
+        proxy_connect_timeout 30s;
+        proxy_send_timeout 30s;
+        proxy_read_timeout 30s;
+
+        # Allow large responses for queries
+        proxy_buffering on;
+        proxy_buffer_size 4k;
+        proxy_buffers 8 4k;
+        proxy_busy_buffers_size 8k;
+    }
+
+    # Health check
+    location /nginx-health {
+        access_log off;
+        return 200 "healthy\n";
+        add_header Content-Type text/plain;
+    }
+}
+
+# Loki
+server {
+    listen 80;
+    server_name loki.${NGINX_DOMAIN};
+
+    location / {
+        limit_req zone=api_limit burst=20 nodelay;
+        
+        proxy_pass http://loki;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+
+        # Timeouts
+        proxy_connect_timeout 30s;
+        proxy_send_timeout 30s;
+        proxy_read_timeout 30s;
+
+        # Buffering
+        proxy_buffering on;
+        proxy_buffer_size 4k;
+        proxy_buffers 8 4k;
+    }
+
+    # Health check
+    location /nginx-health {
+        access_log off;
+        return 200 "healthy\n";
+        add_header Content-Type text/plain;
+    }
+}
+
+# Default server - redirect to Grafana
+server {
+    listen 80 default_server;
+    server_name _;
+
+    location / {
+        return 301 http://$host/grafana;
+    }
+
+    location /grafana {
+        limit_req zone=grafana_limit burst=10 nodelay;
+        
+        proxy_pass http://grafana;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_set_header X-Forwarded-Host $host;
+
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection "upgrade";
+
+        proxy_connect_timeout 60s;
+        proxy_send_timeout 60s;
+        proxy_read_timeout 60s;
+        proxy_buffering off;
+    }
+}
+

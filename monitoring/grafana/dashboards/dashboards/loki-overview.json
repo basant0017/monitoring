@@ -357,7 +357,7 @@
           "type": "loki",
           "uid": "loki"
         },
-        "query": "label_values({job!=""}, job)",
+        "query": "label_values({job!=\"\"}, job)",
         "includeAll": true,
         "multi": true,
         "refresh": 1,

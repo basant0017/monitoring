@@ -1,0 +1,166 @@
+groups:
+  - name: monitoring_stack_alerts
+    interval: 30s
+    rules:
+      # Prometheus alerts
+      - alert: PrometheusDown
+        expr: up{job="prometheus"} == 0
+        for: 1m
+        labels:
+          severity: critical
+          component: prometheus
+        annotations:
+          summary: "Prometheus is down"
+          description: "Prometheus instance {{ $labels.instance }} has been down for more than 1 minute."
+
+      - alert: PrometheusTargetDown
+        expr: up == 0
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Prometheus target is down"
+          description: "Target {{ $labels.job }}/{{ $labels.instance }} has been down for more than 5 minutes."
+
+      # Grafana alerts
+      - alert: GrafanaDown
+        expr: up{job="grafana"} == 0
+        for: 1m
+        labels:
+          severity: critical
+          component: grafana
+        annotations:
+          summary: "Grafana is down"
+          description: "Grafana instance has been down for more than 1 minute."
+
+      # Loki alerts
+      - alert: LokiDown
+        expr: up{job="loki"} == 0
+        for: 1m
+        labels:
+          severity: critical
+          component: loki
+        annotations:
+          summary: "Loki is down"
+          description: "Loki instance has been down for more than 1 minute."
+
+      # Promtail alerts
+      - alert: PromtailDown
+        expr: up{job="promtail"} == 0
+        for: 1m
+        labels:
+          severity: warning
+          component: promtail
+        annotations:
+          summary: "Promtail is down"
+          description: "Promtail instance has been down for more than 1 minute."
+
+      # Node Exporter alerts
+      - alert: NodeExporterDown
+        expr: up{job="node-exporter"} == 0
+        for: 2m
+        labels:
+          severity: warning
+          component: node-exporter
+        annotations:
+          summary: "Node Exporter is down"
+          description: "Node Exporter instance {{ $labels.instance }} has been down for more than 2 minutes."
+
+      # High CPU usage
+      - alert: HighCPUUsage
+        expr: 100 - (avg by(instance) (irate(node_cpu_seconds_total{mode="idle"}[5m])) * 100) > 80
+        for: 5m
+        labels:
+          severity: warning
+          component: system
+        annotations:
+          summary: "High CPU usage detected"
+          description: "CPU usage is above 80% on {{ $labels.instance }} for more than 5 minutes."
+
+      # High memory usage
+      - alert: HighMemoryUsage
+        expr: (1 - (node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes)) * 100 > 85
+        for: 5m
+        labels:
+          severity: warning
+          component: system
+        annotations:
+          summary: "High memory usage detected"
+          description: "Memory usage is above 85% on {{ $labels.instance }} for more than 5 minutes."
+
+      # Disk space alerts
+      - alert: DiskSpaceLow
+        expr: (node_filesystem_avail_bytes{mountpoint="/"} / node_filesystem_size_bytes{mountpoint="/"}) * 100 < 15
+        for: 5m
+        labels:
+          severity: warning
+          component: system
+        annotations:
+          summary: "Low disk space"
+          description: "Disk space is below 15% on {{ $labels.instance }} mountpoint {{ $labels.mountpoint }}."
+
+      - alert: DiskSpaceCritical
+        expr: (node_filesystem_avail_bytes{mountpoint="/"} / node_filesystem_size_bytes{mountpoint="/"}) * 100 < 5
+        for: 5m
+        labels:
+          severity: critical
+          component: system
+        annotations:
+          summary: "Critical disk space"
+          description: "Disk space is below 5% on {{ $labels.instance }} mountpoint {{ $labels.mountpoint }}."
+
+      # Container alerts
+      - alert: ContainerHighCPU
+        expr: rate(container_cpu_usage_seconds_total[5m]) * 100 > 80
+        for: 5m
+        labels:
+          severity: warning
+          component: container
+        annotations:
+          summary: "Container high CPU usage"
+          description: "Container {{ $labels.name }} is using more than 80% CPU."
+
+      - alert: ContainerHighMemory
+        expr: (container_memory_usage_bytes / container_spec_memory_limit_bytes) * 100 > 90
+        for: 5m
+        labels:
+          severity: warning
+          component: container
+        annotations:
+          summary: "Container high memory usage"
+          description: "Container {{ $labels.name }} is using more than 90% of its memory limit."
+
+      # Prometheus storage alerts
+      - alert: PrometheusStorageHigh
+        expr: (prometheus_tsdb_storage_blocks_bytes / 1024 / 1024 / 1024) > 50
+        for: 5m
+        labels:
+          severity: warning
+          component: prometheus
+        annotations:
+          summary: "Prometheus storage usage high"
+          description: "Prometheus storage is using more than 50GB."
+
+      # Loki ingestion rate
+      - alert: LokiHighIngestionRate
+        expr: rate(loki_distributor_lines_received_total[5m]) > 100000
+        for: 5m
+        labels:
+          severity: warning
+          component: loki
+        annotations:
+          summary: "Loki high ingestion rate"
+          description: "Loki is ingesting more than 100k lines per second."
+
+  - name: service_availability
+    interval: 30s
+    rules:
+      - alert: ServiceAvailabilityLow
+        expr: (sum(up) / count(up)) * 100 < 90
+        for: 10m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Service availability below threshold"
+          description: "Overall service availability is below 90% for more than 10 minutes."
+

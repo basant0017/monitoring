@@ -10,5 +10,5 @@ providers:
     editable: true
     foldersFromFilesStructure: true
     options:
-      path: /etc/grafana/provisioning/dashboards
+      path: /etc/grafana/provisioning/dashboards/dashboards
 

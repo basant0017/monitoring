@@ -1,14 +1,28 @@
 version: '3.8'
 
+x-logging: &default-logging
+  driver: "json-file"
+  options:
+    max-size: "10m"
+    max-file: "3"
+    labels: "service,environment"
+
+x-common-labels: &common-labels
+  com.monitoring.stack: "${STACK_NAME:-monitoring}"
+  com.monitoring.version: "enterprise-1.0"
+  com.monitoring.managed: "true"
+
 services:
   prometheus:
     image: prom/prometheus:latest
     container_name: ${STACK_NAME:-monitoring}_prometheus
+    hostname: prometheus
     ports:
       - "${PROMETHEUS_PORT:-9090}:9090"
     volumes:
       - ${MONITORING_CONFIG_DIR:-./monitoring}/prometheus.yml:/etc/prometheus/prometheus.yml:ro
       - ${MONITORING_CONFIG_DIR:-./monitoring}/targets:/etc/prometheus/targets:ro
+      - ${MONITORING_CONFIG_DIR:-./monitoring}/prometheus/alerts.yml:/etc/prometheus/alerts.yml:ro
       - prometheus_data:/prometheus
     command:
       - "--config.file=/etc/prometheus/prometheus.yml"
@@ -17,15 +31,37 @@ services:
       - "--web.console.templates=/etc/prometheus/consoles"
       - "--storage.tsdb.retention.time=200h"
       - "--web.enable-lifecycle"
+      - "--web.enable-admin-api"
+      - "--web.external-url=${PROMETHEUS_EXTERNAL_URL:-}"
     networks:
       - monitoring-network
     restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:9090/-/healthy"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+    deploy:
+      resources:
+        limits:
+          cpus: '2.0'
+          memory: 4G
+        reservations:
+          cpus: '0.5'
+          memory: 512M
+    logging: *default-logging
+    labels: *common-labels
     extra_hosts:
       - "host.docker.internal:host-gateway"
+    read_only: false
+    security_opt:
+      - no-new-privileges:true
 
   grafana:
     image: grafana/grafana:latest
     container_name: ${STACK_NAME:-monitoring}_grafana
+    hostname: grafana
     ports:
       - "${GRAFANA_PORT:-3200}:3200"
     environment:
@@ -34,18 +70,50 @@ services:
       - GF_SERVER_HTTP_PORT=${GRAFANA_PORT:-3200}
       - GF_DASHBOARDS_DEFAULT_HOME_DASHBOARD_PATH=/etc/grafana/provisioning/dashboards/dashboards/home-overview.json
       - GF_DASHBOARDS_DEFAULT_HOME_DASHBOARD_UID=home-monitoring
+      - GF_SECURITY_DISABLE_GRAVATAR=true
+      - GF_SECURITY_COOKIE_SECURE=${GF_COOKIE_SECURE:-false}
+      - GF_SECURITY_COOKIE_SAMESITE=${GF_COOKIE_SAMESITE:-lax}
+      - GF_ANALYTICS_REPORTING_ENABLED=false
+      - GF_ANALYTICS_CHECK_FOR_UPDATES=false
+      - GF_LOG_LEVEL=${GF_LOG_LEVEL:-warn}
+      - GF_INSTALL_PLUGINS=${GF_INSTALL_PLUGINS:-}
     volumes:
       - grafana_data:/var/lib/grafana
-      - ${MONITORING_CONFIG_DIR:-./monitoring}/grafana/datasources:/etc/grafana/provisioning/datasources
-      - ${MONITORING_CONFIG_DIR:-./monitoring}/grafana/dashboards:/etc/grafana/provisioning/dashboards
-      - ${MONITORING_CONFIG_DIR:-./monitoring}/grafana/preferences:/etc/grafana/provisioning/preferences
+      - ${MONITORING_CONFIG_DIR:-./monitoring}/grafana/datasources:/etc/grafana/provisioning/datasources:ro
+      - ${MONITORING_CONFIG_DIR:-./monitoring}/grafana/dashboards:/etc/grafana/provisioning/dashboards:ro
+      - ${MONITORING_CONFIG_DIR:-./monitoring}/grafana/preferences:/etc/grafana/provisioning/preferences:ro
     networks:
       - monitoring-network
     restart: unless-stopped
+    depends_on:
+      prometheus:
+        condition: service_healthy
+      loki:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget --quiet --tries=1 --spider http://localhost:3200/api/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    deploy:
+      resources:
+        limits:
+          cpus: '1.0'
+          memory: 2G
+        reservations:
+          cpus: '0.25'
+          memory: 256M
+    logging: *default-logging
+    labels: *common-labels
+    read_only: false
+    security_opt:
+      - no-new-privileges:true
 
   loki:
     image: grafana/loki:latest
     container_name: ${STACK_NAME:-monitoring}_loki
+    hostname: loki
     ports:
       - "${LOKI_PORT:-3100}:3100"
     command:
@@ -56,25 +124,71 @@ services:
     networks:
       - monitoring-network
     restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "wget --quiet --tries=1 --spider http://localhost:3100/ready || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 20s
+    deploy:
+      resources:
+        limits:
+          cpus: '1.0'
+          memory: 2G
+        reservations:
+          cpus: '0.25'
+          memory: 256M
+    logging: *default-logging
+    labels: *common-labels
+    read_only: false
+    security_opt:
+      - no-new-privileges:true
 
   promtail:
     image: grafana/promtail:latest
     container_name: ${STACK_NAME:-monitoring}_promtail
+    hostname: promtail
     volumes:
-      - /var/log:/var/log
+      - /var/log:/var/log:ro
       - /var/lib/docker/containers:/var/lib/docker/containers:ro
+      - /home/nhz/.pm2/logs:/home/nhz/.pm2/logs:ro
       - /home/gitlab-runner/.pm2/logs:/home/gitlab-runner/.pm2/logs:ro
+      - /home/one/.pm2/logs:/home/one/.pm2/logs:ro
       - ${MONITORING_CONFIG_DIR:-./monitoring}/promtail.yml:/etc/promtail/config.yml:ro
-      - /var/run/docker.sock:/var/run/docker.sock 
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - promtail_positions:/etc/promtail
     command:
       - "-config.file=/etc/promtail/config.yml"
     networks:
       - monitoring-network
     restart: unless-stopped
+    depends_on:
+      loki:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget --quiet --tries=1 --spider http://localhost:9080/ready || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 512M
+        reservations:
+          cpus: '0.1'
+          memory: 128M
+    logging: *default-logging
+    labels: *common-labels
+    read_only: true
+    security_opt:
+      - no-new-privileges:true
 
   cadvisor:
     image: gcr.io/cadvisor/cadvisor:latest
     container_name: ${STACK_NAME:-monitoring}_cadvisor
+    hostname: cadvisor
     ports:
       - "${CADVISOR_PORT:-8080}:8080"
     volumes:
@@ -82,14 +196,32 @@ services:
       - /var/run:/var/run:ro
       - /sys:/sys:ro
       - /var/lib/docker/:/var/lib/docker:ro
+      - /dev/disk/:/dev/disk:ro
     privileged: true
     networks:
       - monitoring-network
     restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "wget --quiet --tries=1 --spider http://localhost:8080/healthz || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 512M
+        reservations:
+          cpus: '0.1'
+          memory: 128M
+    logging: *default-logging
+    labels: *common-labels
 
   node-exporter:
     image: prom/node-exporter:latest
     container_name: ${STACK_NAME:-monitoring}_node-exporter
+    hostname: node-exporter
     ports:
       - "${NODE_EXPORTER_PORT:-9100}:9100"
     volumes:
@@ -103,26 +235,67 @@ services:
       - '--collector.filesystem.mount-points-exclude=^/(sys|proc|dev|host|etc)($$|/)'
       - '--collector.hwmon'
       - '--collector.thermal_zone'
+      - '--web.listen-address=0.0.0.0:9100'
     networks:
       - monitoring-network
     restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "wget --quiet --tries=1 --spider http://localhost:9100/metrics || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 5s
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 256M
+        reservations:
+          cpus: '0.1'
+          memory: 64M
+    logging: *default-logging
+    labels: *common-labels
+    read_only: true
+    security_opt:
+      - no-new-privileges:true
 
   nginx-exporter:
     image: nginx/nginx-prometheus-exporter:latest
     container_name: ${STACK_NAME:-monitoring}_nginx-exporter
+    hostname: nginx-exporter
     profiles:
       - optional
     ports:
       - "${NGINX_EXPORTER_PORT:-9113}:9113"
     command:
-      - "-nginx.scrape-uri=${NGINX_EXPORTER_SCRAPE_URI:-http://host.docker.internal/nginx_status}"
+      - "-nginx.scrape-uri=${NGINX_EXPORTER_SCRAPE_URI:-http://nginx:80/nginx_status}"
     networks:
       - monitoring-network
     restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "wget --quiet --tries=1 --spider http://localhost:9113/metrics || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 5s
+    deploy:
+      resources:
+        limits:
+          cpus: '0.25'
+          memory: 128M
+        reservations:
+          cpus: '0.05'
+          memory: 32M
+    logging: *default-logging
+    labels: *common-labels
+    read_only: true
+    security_opt:
+      - no-new-privileges:true
 
   apache-exporter:
     image: bitnami/apache-exporter:latest
     container_name: ${STACK_NAME:-monitoring}_apache-exporter
+    hostname: apache-exporter
     profiles:
       - optional
     ports:
@@ -132,6 +305,73 @@ services:
     networks:
       - monitoring-network
     restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "wget --quiet --tries=1 --spider http://localhost:9117/metrics || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 5s
+    deploy:
+      resources:
+        limits:
+          cpus: '0.25'
+          memory: 128M
+        reservations:
+          cpus: '0.05'
+          memory: 32M
+    logging: *default-logging
+    labels: *common-labels
+    read_only: true
+    security_opt:
+      - no-new-privileges:true
+
+  nginx:
+    image: nginx:alpine
+    container_name: ${STACK_NAME:-monitoring}_nginx
+    hostname: nginx
+    ports:
+      - "${NGINX_PORT:-80}:80"
+      - "${NGINX_HTTPS_PORT:-443}:443"
+    volumes:
+      - ${MONITORING_CONFIG_DIR:-./monitoring}/nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ${MONITORING_CONFIG_DIR:-./monitoring}/nginx/conf.d/monitoring.conf.template:/etc/nginx/conf.d/monitoring.conf.template:ro
+      - ${MONITORING_CONFIG_DIR:-./monitoring}/nginx/ssl:/etc/nginx/ssl:ro
+      - nginx_logs:/var/log/nginx
+    networks:
+      - monitoring-network
+    restart: unless-stopped
+    depends_on:
+      grafana:
+        condition: service_healthy
+      prometheus:
+        condition: service_healthy
+      loki:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost/nginx-health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 256M
+        reservations:
+          cpus: '0.1'
+          memory: 64M
+    logging: *default-logging
+    labels: *common-labels
+    read_only: true
+    security_opt:
+      - no-new-privileges:true
+    environment:
+      - NGINX_DOMAIN=${NGINX_DOMAIN:-localhost}
+    command: >
+      sh -c "envsubst '$$NGINX_DOMAIN' < /etc/nginx/conf.d/monitoring.conf.template > /etc/nginx/conf.d/monitoring.conf &&
+             nginx -t &&
+             nginx -g 'daemon off;'"
 
 
 volumes:
@@ -144,7 +384,16 @@ volumes:
   loki_data:
     driver: local
     name: ${STACK_NAME:-monitoring}_loki_data
+  nginx_logs:
+    driver: local
+    name: ${STACK_NAME:-monitoring}_nginx_logs
+  promtail_positions:
+    driver: local
+    name: ${STACK_NAME:-monitoring}_promtail_positions
 
 networks:
   monitoring-network:
     driver: bridge
+    ipam:
+      config:
+        - subnet: 172.20.0.0/16

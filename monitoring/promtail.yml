@@ -47,11 +47,28 @@ scrape_configs:
           - localhost
         labels:
           job: pm2-logs
+          __path__: /home/nhz/.pm2/logs/*.log
+          user: nhz
+      - targets:
+          - localhost
+        labels:
+          job: pm2-logs
           __path__: /home/gitlab-runner/.pm2/logs/*.log
+          user: gitlab-runner
+      - targets:
+          - localhost
+        labels:
+          job: pm2-logs
+          __path__: /home/one/.pm2/logs/*.log
+          user: one
     pipeline_stages:
+      # Extract PM2 process name and stream type from filename label
+      # The filename label contains the full path like: /home/user/.pm2/logs/project-name-out.log
       - regex:
+          source: filename
           expression: ".*/(?P<pm2_process>[^/]+?)(?:-(?P<pm2_stream>error|out))?\\.log$"
+      # Add extracted values as labels for filtering by project name
       - labels:
           pm2_process:
           pm2_stream:
-          container: "{{ pm2_process }}"
+          container:
